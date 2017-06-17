@@ -8,6 +8,8 @@ MIN_ZOOM_LEVEL = -300
 MAX_OFFSET = 500
 MIN_OFFSET = -500
 
+DEFAULT_NORMAL_COLOR = (0,200,0)
+DEFAULT_GRID_COLOR = (0,0,200)
 from geometry import Point
 
 class ModelPlacement:
@@ -33,6 +35,13 @@ class SceneViewer():
         self.dimensions = dimensions
         self.viewport = Viewport(dimensions)
         self.screen = self.init_pygame_canvas()
+
+        self.show_normals = True
+        self.normal_color = DEFAULT_NORMAL_COLOR
+
+        self.show_grid = True
+        self.grid_color = DEFAULT_NORMAL_COLOR
+
         self.update()
 
     def init_pygame_canvas(self):
@@ -54,10 +63,25 @@ class SceneViewer():
             np.clip(self.viewport.offset[1]+y,MIN_OFFSET,MAX_OFFSET)
         ]
 
+    def toggleShowNormals(self, val=None):
+        if None is val:
+            val = not self.show_normals
+
+        self.show_normals = val
+
+    def toggleShowGrid(self, val=None):
+        if None is val:
+            val = not self.show_grid
+
+        self.show_grid = val
+
+
     def update(self):
         self.screen.fill(pygame.Color(210,210,255))
-        self.draw_model_grid()
-        print("updating, man")
+
+        if self.show_grid:
+            self.draw_model_grid()
+
         for reference,model_placement in self.scene.model_placements.items():
             print("model")
             model = model_placement.model
@@ -69,13 +93,14 @@ class SceneViewer():
                 normal_coords = (face.unit_normal*3) + np.array([face_midpoint.x,face_midpoint.y,face_midpoint.z])
                 normal_coords = self.viewport.project_point(Point(normal_coords[0],normal_coords[1],normal_coords[2]))
 
-                pygame.draw.line(
-                    self.screen,
-                    (0,200,0),
-                    normal_origin,
-                    normal_coords,
-                    1
-                )
+                if self.show_normals:
+                    pygame.draw.line(
+                        self.screen,
+                        self.normal_color,
+                        normal_origin,
+                        normal_coords,
+                        1
+                    )
 
                 for edge in face.edges:
                     #TODO, map coords to 2d canvas using environment (viewport object)
@@ -101,10 +126,10 @@ class SceneViewer():
         pygame.display.update()
 
     def draw_model_grid(self):
-        pygame.draw.line(self.screen,(0,0,200),(0,0),(self.dimensions[0]-1,0),1)
-        pygame.draw.line(self.screen,(0,0,200),(self.dimensions[0]-1,0),(self.dimensions[0]-1,self.dimensions[1]-1),1)
-        pygame.draw.line(self.screen,(0,0,200),(self.dimensions[0]-1,self.dimensions[1]-1),(0,self.dimensions[1]-1),1)
-        pygame.draw.line(self.screen,(0,0,200),(0,self.dimensions[1]-1),(0,0),1)
+        pygame.draw.line(self.screen,DEFAULT_GRID_COLOR,(0,0),(self.dimensions[0]-1,0),1)
+        pygame.draw.line(self.screen,DEFAULT_GRID_COLOR,(self.dimensions[0]-1,0),(self.dimensions[0]-1,self.dimensions[1]-1),1)
+        pygame.draw.line(self.screen,DEFAULT_GRID_COLOR,(self.dimensions[0]-1,self.dimensions[1]-1),(0,self.dimensions[1]-1),1)
+        pygame.draw.line(self.screen,DEFAULT_GRID_COLOR,(0,self.dimensions[1]-1),(0,0),1)
 
         for i in range(-5,5):
             pygame.draw.circle(

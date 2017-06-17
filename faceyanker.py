@@ -6,25 +6,22 @@ from tkinter.ttk import Treeview
 
 import numpy as np
 from stl import mesh
-
 import svgwrite
 
 from meshloader import *
-
-#from geometry import Scene, ModelPlacement
 from scene import Scene, SceneViewer
-from viewport import *
 
 DEFAULT_MODEL_CANVAS_DIMENSIONS = (600,600)
-class FaceYankerApp:
+DEBUG = False
 
+class FaceYankerApp:
     def __init__(self,master, test=False):
         self.root = master
         self.model_screen = None
+        self.init_ui()
         self.embed_sdl()
         self.scene = Scene()
         self.scene_viewer = SceneViewer(self.scene,DEFAULT_MODEL_CANVAS_DIMENSIONS)
-        self.init_ui()
         if test:
             self.test()
         else:
@@ -60,8 +57,8 @@ class FaceYankerApp:
         menubar.add_cascade(label="Model", menu=modelMenu, underline=0)
 
         viewMenu = Menu(menubar)
-        viewMenu.add_command(label="Toggle Normals", underline=7)
-        viewMenu.add_command(label="Toggle Grid", underline=7)
+        viewMenu.add_command(label="Toggle Normals", underline=7, command=self.on_toggle_normals)
+        viewMenu.add_command(label="Toggle Grid", underline=7, command=self.on_toggle_grid)
         viewMenu.add_command(label="Toggle Model Tree", underline=7)
         menubar.add_cascade(label="View", menu=viewMenu, underline=0)
 
@@ -116,12 +113,14 @@ class FaceYankerApp:
         #tree.insert("dir3", 3, text=" sub dir 3",values=("3A"," 3B"))
 
     def keydown(self,event):
-        if event.keysym_num > 0 and event.keysym_num < 60000:
-            print('This is a printable key. The character is: %r keysym: %r %r' % \
-                (event.char, event.keysym, event.keysym_num))
-        else:
-            print('This key is unprintable. The character is: %r keysym: %r %r' % \
-                (event.char, event.keysym, event.keysym_num))
+
+        if DEBUG:
+            if event.keysym_num > 0 and event.keysym_num < 60000:
+                print('This is a printable key. The character is: %r keysym: %r %r' % \
+                    (event.char, event.keysym, event.keysym_num))
+            else:
+                print('This key is unprintable. The character is: %r keysym: %r %r' % \
+                    (event.char, event.keysym, event.keysym_num))
 
         if event.char == '-':
             self.scene_viewer.zoomIn(1)
@@ -137,7 +136,17 @@ class FaceYankerApp:
             self.scene_viewer.move(1,0)
         if event.char == '\r':
             self.flatten_model()
+
         self.scene_viewer.update()
+
+    def on_toggle_grid(self):
+        self.scene_viewer.toggleShowGrid()
+        self.scene_viewer.update()
+
+    def on_toggle_normals(self):
+        self.scene_viewer.toggleShowNormals()
+        self.scene_viewer.update()
+
 
     def on_flatten_model(self):
         """ called when flatten model is selected from menu
