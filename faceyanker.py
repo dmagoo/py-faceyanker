@@ -96,7 +96,6 @@ class FaceYankerApp:
             model = model_placement.model
             i = 0
             for face in model.faces:
-                #print(face.get_unit_normal())
                 tree.insert(
                     model_root,
                     "end",
@@ -107,10 +106,6 @@ class FaceYankerApp:
                 )
 
                 i = i + 1
-
-        ##alternatively:
-        #tree.insert("", 3, "dir3", text="Dir 3")
-        #tree.insert("dir3", 3, text=" sub dir 3",values=("3A"," 3B"))
 
     def keydown(self,event):
 
@@ -123,9 +118,9 @@ class FaceYankerApp:
                     (event.char, event.keysym, event.keysym_num))
 
         if event.char == '-':
-            self.scene_viewer.zoomIn(1)
+            self.scene_viewer.zoom_in(1)
         if event.char == '+':
-            self.scene_viewer.zoomOut(1)
+            self.scene_viewer.zoom_out(1)
         if event.char == 'w':
             self.scene_viewer.move(0,-1)
         if event.char == 'd':
@@ -140,11 +135,11 @@ class FaceYankerApp:
         self.scene_viewer.update()
 
     def on_toggle_grid(self):
-        self.scene_viewer.toggleShowGrid()
+        self.scene_viewer.toggle_show_grid()
         self.scene_viewer.update()
 
     def on_toggle_normals(self):
-        self.scene_viewer.toggleShowNormals()
+        self.scene_viewer.toggle_show_normals()
         self.scene_viewer.update()
 
     def on_toggle_model_explorer(self):
@@ -175,7 +170,7 @@ class FaceYankerApp:
         print("testing")
         my_mesh = mesh.Mesh.from_file("//ORCHID/home/development/faceyanker/source-files/testcube_35mm.stl")
         model = model_from_mesh(my_mesh)
-        self.scene.addModel("my_model",model,(0,0,0),None)
+        self.scene.add_model("my_model",model,(0,0,0),None)
         self.scene_viewer.update()
         self.flatten_model()
 
@@ -209,7 +204,7 @@ class FaceYankerApp:
         my_mesh = mesh.Mesh.from_file(filename)
         model = model_from_mesh(my_mesh)
 
-        self.scene.addModel("my_model",model,(0,0,0),None)
+        self.scene.add_model("my_model",model,(0,0,0),None)
         self.scene_viewer.update()
         self.update_model_explorer()
 

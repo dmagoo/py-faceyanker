@@ -25,7 +25,7 @@ class Scene:
     def __init__(self):
         self.model_placements = {}
 
-    def addModel(self,reference,model,location,orientation):
+    def add_model(self,reference,model,location,orientation):
         placement = ModelPlacement(reference, model, location, orientation)
         self.model_placements[placement.reference] = placement
 
@@ -51,10 +51,10 @@ class SceneViewer():
         pygame.display.update()
         return screen
 
-    def zoomIn(self,amt):
+    def zoom_in(self,amt):
         #self.zoom_level = min(self.zoom_level + amt, MAX_ZOOM_LEVEL)
         self.viewport.zoom_level = np.clip(self.viewport.zoom_level + amt, MIN_ZOOM_LEVEL, MAX_ZOOM_LEVEL)
-    def zoomOut(self,amt):
+    def zoom_out(self,amt):
         self.viewport.zoom_level = max(self.viewport.zoom_level - amt, MIN_ZOOM_LEVEL)
 
     def move(self, x, y):
@@ -63,13 +63,13 @@ class SceneViewer():
             np.clip(self.viewport.offset[1]+y,MIN_OFFSET,MAX_OFFSET)
         ]
 
-    def toggleShowNormals(self, val=None):
+    def toggle_show_normals(self, val=None):
         if None is val:
             val = not self.show_normals
 
         self.show_normals = val
 
-    def toggleShowGrid(self, val=None):
+    def toggle_show_grid(self, val=None):
         if None is val:
             val = not self.show_grid
 
@@ -160,13 +160,21 @@ class Viewport:
 
     def project_point(self,point):
         """ Given a point, return the coordinates within this viewport """
+
+        #to do a cheap top-view
+        #point = Point(point.x,point.z,point.y)
+
+        #to do a cheap right-view
+        #point = Point(point.z,point.y,-point.x)
+
+        #to do a cheap left-view
+        #point = Point(-point.z,point.y,point.x)
         if point.z == 0:
             z_actual = -.001
         else:
             z_actual = point.z
 
         z_actual = z_actual - self.zoom_level
-
         x_actual = point.x + self.offset[0]
         y_actual = point.y + self.offset[1]
 
