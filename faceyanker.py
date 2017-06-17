@@ -1,5 +1,4 @@
 import os,platform
-import pygame
 from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
@@ -12,7 +11,8 @@ import svgwrite
 
 from meshloader import *
 
-from geometry import Scene, ModelPlacement
+#from geometry import Scene, ModelPlacement
+from scene import Scene, SceneViewer
 from viewport import *
 
 DEFAULT_MODEL_CANVAS_DIMENSIONS = (600,600)
@@ -21,8 +21,9 @@ class FaceYankerApp:
     def __init__(self,master, test=False):
         self.root = master
         self.model_screen = None
-        self.model_viewport = Viewport(DEFAULT_MODEL_CANVAS_DIMENSIONS)
+        self.embed_sdl()
         self.scene = Scene()
+        self.scene_viewer = SceneViewer(self.scene,DEFAULT_MODEL_CANVAS_DIMENSIONS)
         self.init_ui()
         if test:
             self.test()
@@ -43,7 +44,6 @@ class FaceYankerApp:
         self.init_menu(frame)
         self.init_canvas()
         self.model_explorer = self.init_model_explorer()
-        self.init_pygame_canvas()
 
     def init_menu(self,frame):
         menubar = Menu(self.root)
@@ -66,94 +66,17 @@ class FaceYankerApp:
         menubar.add_cascade(label="View", menu=viewMenu, underline=0)
 
     def init_canvas(self):
+        """ reserved for non pygame canvas stuff (placeholder) """
         w = Canvas(self.root, width=300, height=450)
         w.pack(side="right",fill="both")
 
-    def init_pygame_canvas(self):
+    def embed_sdl(self):
         embed = Frame(self.root, width = DEFAULT_MODEL_CANVAS_DIMENSIONS[0], height = DEFAULT_MODEL_CANVAS_DIMENSIONS[1]) #creates embed frame for pygame window
         #embed.grid(columnspan = (600), rowspan = 500) # Adds grid
         embed.pack(side = LEFT) #packs window to the left
         os.environ['SDL_WINDOWID'] = str(embed.winfo_id())
         if platform.system == "Windows":
             os.environ['SDL_VIDEODRIVER'] = 'windib'
-
-        self.model_screen = pygame.display.set_mode(DEFAULT_MODEL_CANVAS_DIMENSIONS)
-        self.model_screen.fill(pygame.Color(210,210,255))
-        self.draw_model_grid()
-        pygame.display.init()
-        pygame.display.update()
-
-    def draw_model_grid(self):
-        pygame.draw.line(self.model_screen,(0,0,200),(0,0),(DEFAULT_MODEL_CANVAS_DIMENSIONS[0]-1,0),1)
-        pygame.draw.line(self.model_screen,(0,0,200),(DEFAULT_MODEL_CANVAS_DIMENSIONS[0]-1,0),(DEFAULT_MODEL_CANVAS_DIMENSIONS[0]-1,DEFAULT_MODEL_CANVAS_DIMENSIONS[1]-1),1)
-        pygame.draw.line(self.model_screen,(0,0,200),(DEFAULT_MODEL_CANVAS_DIMENSIONS[0]-1,DEFAULT_MODEL_CANVAS_DIMENSIONS[1]-1),(0,DEFAULT_MODEL_CANVAS_DIMENSIONS[1]-1),1)
-        pygame.draw.line(self.model_screen,(0,0,200),(0,DEFAULT_MODEL_CANVAS_DIMENSIONS[1]-1),(0,0),1)
-
-        for i in range(-5,5):
-            pygame.draw.circle(
-                self.model_screen,
-                (1,1,1),
-                self.model_viewport.project_point(Point(i*10,-5,100)),
-                2,
-                2
-            )
-
-            pygame.draw.line(self.model_screen,(200,0,0),
-                self.model_viewport.project_point(Point(i*10,-5,1)),
-                self.model_viewport.project_point(Point(i*10,-5,2000)),
-                1
-            )
-
-
-        return
-
-    def update_model_view(self):
-        self.model_screen.fill(pygame.Color(210,210,255))
-
-        self.draw_model_grid()
-
-        for reference,model_placement in self.scene.model_placements.items():
-            model = model_placement.model
-            #print(model)
-
-            for face in model.faces:
-                #normal_coords = self.model_viewport.project_point(Point(face.normal[0],face.normal[1],face.normal[2]))
-                face_midpoint = face.get_midpoint()
-                normal_origin = self.model_viewport.project_point(face_midpoint)
-                normal_coords = (face.unit_normal*3) + np.array([face_midpoint.x,face_midpoint.y,face_midpoint.z])
-                normal_coords = self.model_viewport.project_point(Point(normal_coords[0],normal_coords[1],normal_coords[2]))
-
-                pygame.draw.line(
-                    self.model_screen,
-                    (0,200,0),
-                    normal_origin,
-                    normal_coords,
-                    1
-                )
-
-                for edge in face.edges:
-                    #TODO, map coords to 2d canvas using environment (viewport object)
-                    #coords = 5*int(30+point.x),5*int(30+point.y)
-                    start_coords = self.model_viewport.project_point(edge.points[0])
-                    end_coords = self.model_viewport.project_point(edge.points[1])
-                    #print(coords)
-                    #print("------------")
-                    pygame.draw.circle(
-                        self.model_screen,
-                        (1,1,1),
-                        start_coords,
-                        2,
-                        2
-                    )
-                    pygame.draw.line(self.model_screen,
-                        (0,0,200),
-                        start_coords,
-                        end_coords,
-                        1
-                    )
-
-        pygame.display.update()
-        #print("model view updated")
 
     def init_model_explorer(self):
         tree = ttk.Treeview(self.root,columns=("normal"), displaycolumns="normal", height=35)
@@ -201,27 +124,27 @@ class FaceYankerApp:
                 (event.char, event.keysym, event.keysym_num))
 
         if event.char == '-':
-            self.model_viewport.zoomIn(1)
+            self.scene_viewer.zoomIn(1)
         if event.char == '+':
-            self.model_viewport.zoomOut(1)
+            self.scene_viewer.zoomOut(1)
         if event.char == 'w':
-            self.model_viewport.move(0,-1)
+            self.scene_viewer.move(0,-1)
         if event.char == 'd':
-            self.model_viewport.move(-1,0)
+            self.scene_viewer.move(-1,0)
         if event.char == 's':
-            self.model_viewport.move(0,1)
+            self.scene_viewer.move(0,1)
         if event.char == 'a':
-            self.model_viewport.move(1,0)
+            self.scene_viewer.move(1,0)
         if event.char == '\r':
             self.flatten_model()
-        self.update_model_view()
+        self.scene_viewer.update()
 
     def on_flatten_model(self):
         """ called when flatten model is selected from menu
             allows for other processing if needed
         """
         self.flatten_model()
-        self.update_model_view()
+        self.scene_viewer.update()
 
     def flatten_model(self):
         for reference,model_placement in self.scene.model_placements.items():
@@ -233,8 +156,8 @@ class FaceYankerApp:
         print("testing")
         my_mesh = mesh.Mesh.from_file("//ORCHID/home/development/faceyanker/source-files/testcube_35mm.stl")
         model = model_from_mesh(my_mesh)
-        self.scene.setModelPlacement(ModelPlacement("my_model",model,(0,0,0),None))
-        self.update_model_view()
+        self.scene.addModel("my_model",model,(0,0,0),None)
+        self.scene_viewer.update()
         self.flatten_model()
 
     def on_export(self):
@@ -260,30 +183,17 @@ class FaceYankerApp:
         dwg.save()
 
     def on_face_select(self, e):
-        #print(e)
-        #selected_items = self.model_explorer.selection()
         item = self.model_explorer.focus()
-        #print(len(selected_items))
-        #for item in selected_items:
         print("you clicked on", self.model_explorer.item(item,"text"))
 
     def on_open(self):
         filename =  filedialog.askopenfilename(initialdir = "/",title = "Select file",filetypes = (("STL files", "*.stl"),("all files","*.*")))
-
-        #print(filename)
-
         my_mesh = mesh.Mesh.from_file(filename)
-
         model = model_from_mesh(my_mesh)
 
-        self.scene.setModelPlacement(ModelPlacement("my_model",model,(0,0,0),None))
-        self.update_model_view()
+        self.scene.addModel("my_model",model,(0,0,0),None)
+        self.scene_viewer.update()
         self.update_model_explorer()
-
-
-        # The mesh vectors
-        #print((my_mesh.v0, my_mesh.v1, my_mesh.v2))
-
 
 
 def main():
