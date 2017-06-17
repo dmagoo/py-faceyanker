@@ -220,57 +220,6 @@ class Face:
         )
 
         return normal
-    """
-
-    def cmp_to_key(self,mycmp):
-        'Convert a cmp= function into a key= function'
-        class K(object):
-            def __init__(self, obj, *args):
-                self.obj = obj
-            def __lt__(self, other):
-                return mycmp(self.obj, other.obj) < 0
-            def __gt__(self, other):
-                print("gt")
-                return mycmp(self.obj, other.obj) > 0
-            def __eq__(self, other):
-                return mycmp(self.obj, other.obj) == 0
-            def __le__(self, other):
-                return mycmp(self.obj, other.obj) <= 0
-            def __ge__(self, other):
-                return mycmp(self.obj, other.obj) >= 0
-            def __ne__(self, other):
-                return mycmp(self.obj, other.obj) != 0
-        return K
-
-    def compare_points(self,point_a, point_b):
-        ' returns negative if B is clockwise from A, positive if B is ccw A '
-        #print("comparing %s to %s" % (point_a,point_b))
-        #print("a to vec %s" % point_a.to_vector())
-        #print("b to vec %s" % point_b.to_vector())
-        midpoint = self.get_midpoint()
-
-        #print("found midpoint %s" % midpoint)
-        #todo, raise exception
-        #this will not happen if we implement get_midpoint for general faces
-        #should be cached w/ a dirtying mechanism
-        if midpoint is not None:
-            return 0
-
-        a = point_a.to_vector()
-        b = point_b.to_vector()
-
-        return np.dot(self.normal,np.cross(a-midpoint,b-midpoint))
-
-    def sort_points(self):
-        #You have the center C and the normal n.
-        #To determine whether point B is clockwise or counterclockwise from point A, calculate dot(n, cross(A-C, B-C)).
-        # If the result is positive, B is counterclockwise from A; if it's negative, B is clockwise from A.
-        #points = copy.copy(self.points)
-        #points.sort(key=self.cmp_to_key(self.compare_points))
-        #insertion_sort(self.points,self.compare_points)
-        #self.points = points
-        self.points = sorted(self.points,key=self.cmp_to_key(self.compare_points))
-    """
 
     def contains_edge(self, edge):
         #return any([(edge[0]==my_edge[0] and edge[1]==my_edge[1]) or (edge[1]==my_edge[0] and edge[0]==my_edge[1]) for my_edge in self.edges()])
@@ -354,28 +303,18 @@ class Model:
                     if not processed_faces[i]["assimilated"]:
                         for j in range(len(processed_faces)):
                             if processed_faces[j]["face"] == processed_faces[i]["face"]:
-                                #print("skipping self")
-                                #print("-------------")
+                                #skip self
                                 pass
                             elif processed_faces[j]["assimilated"]:
-                                #print("skipping assimilated")
-                                #print("-------------")
+                                #skip other faces that have already been assimilated
                                 pass
                             elif processed_faces[j]["face"].adjacent_to(processed_faces[i]["face"]):
-                                #print("adjacent")
-                                #print("-------------")
-                                #TODO MERGE
-                                #print("pre-merge")
-                                #print(processed_faces[i]["face"])
-                                #print(processed_faces[j]["face"])
+                                #this face is adjacent and should be merged / assimilated
                                 processed_faces[i]["face"] = merge_faces(processed_faces[i]["face"],processed_faces[j]["face"])
-                                #print("post-merge")
-                                #print(processed_faces[i]["face"])
                                 processed_faces[j]["assimilated"] = True
                                 found_something = True
                             else:
-                                #print("not adjacent")
-                                #print("-------------")
+                                #not adjacent, nothing to do
                                 pass
                 if not found_something:
                     done = True
@@ -388,19 +327,3 @@ class Model:
                     new_model.add_face(processed_face["face"])
 
         return new_model
-
-class ModelPlacement:
-    """The model in the context of a scene"""
-    def __init__(self,reference,model,location,orientation):
-        self.model = model
-        self.location = location
-        self.orientation = orientation
-        self.reference = reference
-
-class Scene:
-    """A collection of modelplacements"""
-    def __init__(self):
-        self.model_placements = {}
-
-    def setModelPlacement(self, placement):
-        self.model_placements[placement.reference] = placement
