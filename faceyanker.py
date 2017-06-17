@@ -59,7 +59,7 @@ class FaceYankerApp:
         viewMenu = Menu(menubar)
         viewMenu.add_command(label="Toggle Normals", underline=7, command=self.on_toggle_normals)
         viewMenu.add_command(label="Toggle Grid", underline=7, command=self.on_toggle_grid)
-        viewMenu.add_command(label="Toggle Model Tree", underline=7)
+        viewMenu.add_command(label="Toggle Model Tree", underline=7, command=self.on_toggle_model_explorer)
         menubar.add_cascade(label="View", menu=viewMenu, underline=0)
 
     def init_canvas(self):
@@ -91,12 +91,12 @@ class FaceYankerApp:
     def update_model_explorer(self):
         tree = self.model_explorer
         for reference,model_placement in self.scene.model_placements.items():
-            print(model_placement.reference)
+            #print(model_placement.reference)
             model_root = tree.insert("", 1, model_placement.reference, text=model_placement.reference, open=True)
             model = model_placement.model
             i = 0
             for face in model.faces:
-                print(face.get_unit_normal())
+                #print(face.get_unit_normal())
                 tree.insert(
                     model_root,
                     "end",
@@ -147,6 +147,16 @@ class FaceYankerApp:
         self.scene_viewer.toggleShowNormals()
         self.scene_viewer.update()
 
+    def on_toggle_model_explorer(self):
+        #this doesn't work quite right, when the widget is re-packed it
+        #comes back to the right of the model_viewer
+        #either need to nested frames or switch to grid layout
+        #not gonna bother now
+        return
+        if self.model_explorer.winfo_manager():
+            self.model_explorer.pack_forget()
+        else:
+            self.model_explorer.pack()
 
     def on_flatten_model(self):
         """ called when flatten model is selected from menu
@@ -183,7 +193,6 @@ class FaceYankerApp:
         for reference,placement in self.scene.model_placements.items():
             for face in placement.model.faces:
                 poly_2d = face.to2D()
-                print("adding coordinates to a polygon")
                 poly_points = poly_2d.get_points()
                 #try converting to normal floats, dwg validator does not recognize numpy.float32
                 poly_points = [[float(coord) for coord in point] for point in poly_points[:-1]]
