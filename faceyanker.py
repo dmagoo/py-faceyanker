@@ -1,7 +1,10 @@
 import os,platform
 import pygame
 from tkinter import *
+from tkinter import ttk
 from tkinter import filedialog
+from tkinter.ttk import Treeview
+
 import numpy as np
 from stl import mesh
 
@@ -31,16 +34,36 @@ class FaceYankerApp:
         except:
             pass
 
+    def init_ui(self):
+        frame = Frame(self.root)
+        frame.pack()
+        frame.bind("<KeyPress>", self.keydown)
+        frame.focus_set()
+
+        self.init_menu(frame)
+        self.init_canvas()
+        self.model_explorer = self.init_model_explorer()
+        self.init_pygame_canvas()
+
     def init_menu(self,frame):
         menubar = Menu(self.root)
         self.root.config(menu=menubar)
 
         fileMenu = Menu(menubar)
-        fileMenu.add_command(label="Import Model", command=self.on_open)
-        fileMenu.add_command(label="Export SVG", command=self.on_export)
-        fileMenu.add_command(label="Exit", command=frame.quit)
+        fileMenu.add_command(label="Import Model", command=self.on_open, accelerator="Ctrl+O", underline=0)
+        fileMenu.add_command(label="Export SVG", command=self.on_export, accelerator="Ctrl+S", underline=0)
+        fileMenu.add_command(label="Exit", command=frame.quit, accelerator="Ctrl+X", underline=1)
+        menubar.add_cascade(label="File", menu=fileMenu, underline=0)
 
-        menubar.add_cascade(label="File", menu=fileMenu)
+        modelMenu = Menu(menubar)
+        modelMenu.add_command(label="Reduce Model", command=self.on_flatten_model, underline=0)
+        menubar.add_cascade(label="Model", menu=modelMenu, underline=0)
+
+        viewMenu = Menu(menubar)
+        viewMenu.add_command(label="Toggle Normals", underline=7)
+        viewMenu.add_command(label="Toggle Grid", underline=7)
+        viewMenu.add_command(label="Toggle Model Tree", underline=7)
+        menubar.add_cascade(label="View", menu=viewMenu, underline=0)
 
     def init_canvas(self):
         w = Canvas(self.root, width=300, height=450)
@@ -65,7 +88,6 @@ class FaceYankerApp:
         pygame.draw.line(self.model_screen,(0,0,200),(DEFAULT_MODEL_CANVAS_DIMENSIONS[0]-1,0),(DEFAULT_MODEL_CANVAS_DIMENSIONS[0]-1,DEFAULT_MODEL_CANVAS_DIMENSIONS[1]-1),1)
         pygame.draw.line(self.model_screen,(0,0,200),(DEFAULT_MODEL_CANVAS_DIMENSIONS[0]-1,DEFAULT_MODEL_CANVAS_DIMENSIONS[1]-1),(0,DEFAULT_MODEL_CANVAS_DIMENSIONS[1]-1),1)
         pygame.draw.line(self.model_screen,(0,0,200),(0,DEFAULT_MODEL_CANVAS_DIMENSIONS[1]-1),(0,0),1)
-
 
         for i in range(-5,5):
             pygame.draw.circle(
@@ -133,6 +155,43 @@ class FaceYankerApp:
         pygame.display.update()
         #print("model view updated")
 
+    def init_model_explorer(self):
+        tree = ttk.Treeview(self.root,columns=("normal"), displaycolumns="normal", height=35)
+        tree.column("normal", width=75)
+        tree.heading("normal", text="Normal")
+        tree.tag_bind("face","<ButtonRelease-1>", self.on_face_select)
+        my_scroll = ttk.Scrollbar(orient="vertical")
+        my_scroll.configure(command=tree.yview)
+        tree.configure(yscrollcommand=my_scroll)
+        tree.pack(side=LEFT, fill="y")
+        my_scroll.pack(side=LEFT, fill="y", expand=False)#grid(row=1, column=2, sticky="W")
+
+        return tree
+
+    def update_model_explorer(self):
+        tree = self.model_explorer
+        for reference,model_placement in self.scene.model_placements.items():
+            print(model_placement.reference)
+            model_root = tree.insert("", 1, model_placement.reference, text=model_placement.reference, open=True)
+            model = model_placement.model
+            i = 0
+            for face in model.faces:
+                print(face.get_unit_normal())
+                tree.insert(
+                    model_root,
+                    "end",
+                    model_placement.reference + "-" + str(i),
+                    text=hex(i),
+                    values=(face.get_unit_normal(),),
+                    tags=("face",)
+                )
+
+                i = i + 1
+
+        ##alternatively:
+        #tree.insert("", 3, "dir3", text="Dir 3")
+        #tree.insert("dir3", 3, text=" sub dir 3",values=("3A"," 3B"))
+
     def keydown(self,event):
         if event.keysym_num > 0 and event.keysym_num < 60000:
             print('This is a printable key. The character is: %r keysym: %r %r' % \
@@ -157,29 +216,18 @@ class FaceYankerApp:
             self.flatten_model()
         self.update_model_view()
 
+    def on_flatten_model(self):
+        """ called when flatten model is selected from menu
+            allows for other processing if needed
+        """
+        self.flatten_model()
+        self.update_model_view()
+
     def flatten_model(self):
         for reference,model_placement in self.scene.model_placements.items():
             model = model_placement.model
             reduced_model = model.get_reduced_model()
             model_placement.model = reduced_model
-
-
-    def init_ui(self):
-        frame = Frame(self.root)
-        frame.pack()
-        #self.root.bind("<KeyPress>", self.keydown)
-        frame.bind("<KeyPress>", self.keydown)
-        #frame.bind("<Left>", self.keydown)
-        #frame.bind("<Left>", lambda event: print("press"))
-        frame.focus_set()
-
-        self.init_menu(frame)
-        self.init_canvas()
-        self.init_pygame_canvas()
-#        self.button = Button(
-#            frame, text="QUIT", fg="red", command=frame.quit
-#        )
-#        self.button.pack(side=LEFT)
 
     def test(self):
         print("testing")
@@ -211,6 +259,14 @@ class FaceYankerApp:
 
         dwg.save()
 
+    def on_face_select(self, e):
+        #print(e)
+        #selected_items = self.model_explorer.selection()
+        item = self.model_explorer.focus()
+        #print(len(selected_items))
+        #for item in selected_items:
+        print("you clicked on", self.model_explorer.item(item,"text"))
+
     def on_open(self):
         filename =  filedialog.askopenfilename(initialdir = "/",title = "Select file",filetypes = (("STL files", "*.stl"),("all files","*.*")))
 
@@ -222,6 +278,9 @@ class FaceYankerApp:
 
         self.scene.setModelPlacement(ModelPlacement("my_model",model,(0,0,0),None))
         self.update_model_view()
+        self.update_model_explorer()
+
+
         # The mesh vectors
         #print((my_mesh.v0, my_mesh.v1, my_mesh.v2))
 
