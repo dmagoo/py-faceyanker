@@ -9,7 +9,13 @@ from stl import mesh
 import svgwrite
 
 from meshloader import *
-from scene import Scene, SceneViewer
+from scene import Scene, SceneViewer, \
+    SCENE_PERSPECTIVE_FRONT, \
+    SCENE_PERSPECTIVE_TOP, \
+    SCENE_PERSPECTIVE_LEFT, \
+    SCENE_PERSPECTIVE_RIGHT, \
+    SCENE_PERSPECTIVE_BOTTOM, \
+    SCENE_PERSPECTIVE_BACK
 
 DEFAULT_MODEL_CANVAS_DIMENSIONS = (600,600)
 DEBUG = False
@@ -60,6 +66,14 @@ class FaceYankerApp:
         viewMenu.add_command(label="Toggle Normals", underline=7, command=self.on_toggle_normals)
         viewMenu.add_command(label="Toggle Grid", underline=7, command=self.on_toggle_grid)
         viewMenu.add_command(label="Toggle Model Tree", underline=7, command=self.on_toggle_model_explorer)
+        viewMenu.add_separator()
+        viewMenu.add_command(label="Front View", underline=0, command=lambda:self.on_set_perspective(SCENE_PERSPECTIVE_FRONT))
+        viewMenu.add_command(label="Top View", underline=0, command=lambda:self.on_set_perspective(SCENE_PERSPECTIVE_TOP))
+        viewMenu.add_command(label="Left View", underline=0, command=lambda:self.on_set_perspective(SCENE_PERSPECTIVE_LEFT))
+        viewMenu.add_command(label="Right View", underline=0, command=lambda:self.on_set_perspective(SCENE_PERSPECTIVE_RIGHT))
+        viewMenu.add_command(label="Back View", underline=0, command=lambda:self.on_set_perspective(SCENE_PERSPECTIVE_BACK))
+        viewMenu.add_command(label="Bottom View", underline=1, command=lambda:self.on_set_perspective(SCENE_PERSPECTIVE_BOTTOM))
+
         menubar.add_cascade(label="View", menu=viewMenu, underline=0)
 
     def init_canvas(self):
@@ -146,6 +160,10 @@ class FaceYankerApp:
         self.scene_viewer.toggle_show_normals()
         self.scene_viewer.update()
 
+    def on_set_perspective(self, perspective):
+        self.scene_viewer.set_perspective(perspective)
+        self.scene_viewer.update()
+
     def on_toggle_model_explorer(self):
         #this doesn't work quite right, when the widget is re-packed it
         #comes back to the right of the model_viewer
@@ -178,17 +196,33 @@ class FaceYankerApp:
         filename = filedialog.asksaveasfilename(filetypes=[("SVG files", "*.svg")])
 
         if filename:
-            dwg = svgwrite.Drawing(filename)
+            #gotta rework this so we know the dimensions in advance
+            #chicken egg problem
+            #size is apparently how we set the units, but we don't know size
+            #until we've gone through the 2d coordinates.
+            #will rework soon. For now, I'm hard-coding arbitrary dimensions.
+            dwg = svgwrite.Drawing(filename,size=("200mm","200mm"), viewBox=("0 0 200 200"))
         else:
             return
 
         for reference,placement in self.scene.model_placements.items():
-            for face in placement.model.faces:
+            for index,face in enumerate(placement.model.faces):
                 poly_2d = face.to2D()
                 poly_points = poly_2d.get_points()
+
                 #try converting to normal floats, dwg validator does not recognize numpy.float32
                 poly_points = [[float(coord) for coord in point] for point in poly_points[:-1]]
-                dwg.add(dwg.polygon(poly_points,stroke="black"))
+                mid_x = sum([point[0] for point in poly_points])/len(poly_points)
+                mid_y = sum([point[1] for point in poly_points])/len(poly_points)
+                dwg.add(dwg.polygon(poly_points,stroke="black",fill="none"))
+
+                dwg.add(
+                    dwg.text(
+                        placement.reference + '-' + placement.hash_face(index),
+                        insert=(float(mid_x),float(mid_y))
+                    )
+                )
+
 
         dwg.save()
 

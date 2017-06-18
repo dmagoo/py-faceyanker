@@ -2,6 +2,15 @@ from math import tan
 import numpy as np
 import pygame
 
+SCENE_PERSPECTIVE_FRONT = 0
+SCENE_PERSPECTIVE_TOP = 1
+SCENE_PERSPECTIVE_LEFT = 2
+SCENE_PERSPECTIVE_RIGHT = 3
+SCENE_PERSPECTIVE_BOTTOM = 4
+SCENE_PERSPECTIVE_BACK = 5
+
+DEFAULT_PERSPECTIVE = SCENE_PERSPECTIVE_FRONT
+
 MAX_ZOOM_LEVEL = 300
 MIN_ZOOM_LEVEL = -300
 
@@ -14,6 +23,7 @@ DEFAULT_EDGE_COLOR = (0,0,200)
 DEFAULT_ACTIVE_EDGE_COLOR = (200,0,0)
 DEFAULT_BACKGROUND_COLOR = (255,255,255)
 DEFAULT_ACTIVE_FACE_COLOR = (30,30,200,100)
+
 from geometry import Point
 
 class ModelPlacement:
@@ -71,6 +81,9 @@ class SceneViewer():
         pygame.display.update()
         return screen
 
+    def set_perspective(self, perspective):
+        self.viewport.perspective = perspective
+
     def zoom_in(self,amt):
         #self.zoom_level = min(self.zoom_level + amt, MAX_ZOOM_LEVEL)
         self.viewport.zoom_level = np.clip(self.viewport.zoom_level + amt, MIN_ZOOM_LEVEL, MAX_ZOOM_LEVEL)
@@ -107,9 +120,7 @@ class SceneViewer():
         active_faces = []
 
         for reference,model_placement in self.scene.model_placements.items():
-            print("model")
             model = model_placement.model
-            #print(model)
 
             for index,face in enumerate(model.faces):
                 face_midpoint = face.get_midpoint()
@@ -153,7 +164,11 @@ class SceneViewer():
                     )
         for face in active_faces:
             face_points = []
+            debug_edges = []
+            #these edges are out of order and will cause messed up polygons
+            #todo: generalize code from polygon2d.get_points and reuse here
             for edge in face.edges:
+                debug_edges.append((self.viewport.project_point(edge.points[0]),self.viewport.project_point(edge.points[1])))
                 face_points.append(self.viewport.project_point(edge.points[0]))
                 face_points.append(self.viewport.project_point(edge.points[1]))
 
@@ -164,9 +179,10 @@ class SceneViewer():
             #also consider dbl buffering
             s = pygame.Surface(self.dimensions, pygame.SRCALPHA)  # the size of your rect
             s.fill((255,255,255,50))           # this fills the entire surface
-
+            print(debug_edges)
+            print(face_points)
             pygame.draw.polygon(
-                s, DEFAULT_ACTIVE_FACE_COLOR, face_points, 0
+                s, DEFAULT_ACTIVE_FACE_COLOR, face_points[:-1], 0
             )
 
             self.screen.blit(s, (0,0))
@@ -206,18 +222,23 @@ class Viewport:
         self.zoom_level = -10
         self.offset = [0,0] #viewport offset x,y
         self.h_fov = 1.042 # 60deg in radians
+        self.perspective = DEFAULT_PERSPECTIVE
 
     def project_point(self,point):
         """ Given a point, return the coordinates within this viewport """
 
-        #to do a cheap top-view
-        #point = Point(point.x,point.z,point.y)
+        point = {
+            SCENE_PERSPECTIVE_FRONT: point,
+            SCENE_PERSPECTIVE_TOP: Point(point.x,point.z,point.y),
+            SCENE_PERSPECTIVE_LEFT: Point(-point.z,point.y,point.x),
+            SCENE_PERSPECTIVE_RIGHT: Point(point.z,point.y,-point.x),
+            SCENE_PERSPECTIVE_BOTTOM: Point(point.x,-point.z,point.y),
+            SCENE_PERSPECTIVE_BACK:  Point(-point.x,point.y,-point.z)
 
-        #to do a cheap right-view
-        #point = Point(point.z,point.y,-point.x)
+        }[self.perspective]
 
         #to do a cheap left-view
-        #point = Point(-point.z,point.y,point.x)
+        #point =
         if point.z == 0:
             z_actual = -.001
         else:
