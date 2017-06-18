@@ -79,7 +79,7 @@ class FaceYankerApp:
         tree = ttk.Treeview(self.root,columns=("normal"), displaycolumns="normal", height=35)
         tree.column("normal", width=75)
         tree.heading("normal", text="Normal")
-        tree.tag_bind("face","<ButtonRelease-1>", self.on_face_select)
+        tree.tag_bind("face","<<TreeviewSelect>>", self.on_face_select)
         my_scroll = ttk.Scrollbar(orient="vertical")
         my_scroll.configure(command=tree.yview)
         tree.configure(yscrollcommand=my_scroll)
@@ -88,27 +88,31 @@ class FaceYankerApp:
 
         return tree
 
+    def clear_model_explorer(self):
+        tree = self.model_explorer
+        tree.delete(*tree.get_children())
+
     def update_model_explorer(self):
+        #clean an existing tree in case something is getting updated, such as
+        #face reduction
+        self.clear_model_explorer()
         tree = self.model_explorer
         for reference,model_placement in self.scene.model_placements.items():
             #print(model_placement.reference)
             model_root = tree.insert("", 1, model_placement.reference, text=model_placement.reference, open=True)
             model = model_placement.model
-            i = 0
-            for face in model.faces:
+
+            for i,face in enumerate(model.faces):
                 tree.insert(
                     model_root,
                     "end",
                     model_placement.reference + "-" + str(i),
-                    text=hex(i),
+                    text=model_placement.hash_face(i),
                     values=(face.get_unit_normal(),),
                     tags=("face",)
                 )
 
-                i = i + 1
-
     def keydown(self,event):
-
         if DEBUG:
             if event.keysym_num > 0 and event.keysym_num < 60000:
                 print('This is a printable key. The character is: %r keysym: %r %r' % \
@@ -159,20 +163,13 @@ class FaceYankerApp:
         """
         self.flatten_model()
         self.scene_viewer.update()
+        self.update_model_explorer()
 
     def flatten_model(self):
         for reference,model_placement in self.scene.model_placements.items():
             model = model_placement.model
             reduced_model = model.get_reduced_model()
             model_placement.model = reduced_model
-
-    def test(self):
-        print("testing")
-        my_mesh = mesh.Mesh.from_file("//ORCHID/home/development/faceyanker/source-files/testcube_35mm.stl")
-        model = model_from_mesh(my_mesh)
-        self.scene.add_model("my_model",model,(0,0,0),None)
-        self.scene_viewer.update()
-        self.flatten_model()
 
     def on_export(self):
         if 0 == len(self.scene.model_placements):
@@ -197,7 +194,15 @@ class FaceYankerApp:
 
     def on_face_select(self, e):
         item = self.model_explorer.focus()
-        print("you clicked on", self.model_explorer.item(item,"text"))
+        #print("you clicked on", self.model_explorer.item(item,"text"))
+        #print(item)
+
+        #print(item.parent())
+        #print(self.model_explorer.parent(item))
+
+        model_placement = self.scene.get_model_placement(self.model_explorer.parent(item))
+        model_placement.set_active_face(int(self.model_explorer.item(item,"text"),0))
+        self.scene_viewer.update()
 
     def on_open(self):
         filename =  filedialog.askopenfilename(initialdir = "/",title = "Select file",filetypes = (("STL files", "*.stl"),("all files","*.*")))
@@ -208,6 +213,13 @@ class FaceYankerApp:
         self.scene_viewer.update()
         self.update_model_explorer()
 
+    def test(self):
+        print("testing")
+        my_mesh = mesh.Mesh.from_file("//ORCHID/home/development/faceyanker/source-files/testcube_35mm.stl")
+        model = model_from_mesh(my_mesh)
+        self.scene.add_model("my_model",model,(0,0,0),None)
+        self.scene_viewer.update()
+        self.flatten_model()
 
 def main():
     root = Tk()

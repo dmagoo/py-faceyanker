@@ -9,7 +9,11 @@ MAX_OFFSET = 500
 MIN_OFFSET = -500
 
 DEFAULT_NORMAL_COLOR = (0,200,0)
-DEFAULT_GRID_COLOR = (0,0,200)
+DEFAULT_GRID_COLOR = (200,200,200)
+DEFAULT_EDGE_COLOR = (0,0,200)
+DEFAULT_ACTIVE_EDGE_COLOR = (200,0,0)
+DEFAULT_BACKGROUND_COLOR = (255,255,255)
+DEFAULT_ACTIVE_FACE_COLOR = (30,30,200,100)
 from geometry import Point
 
 class ModelPlacement:
@@ -19,6 +23,15 @@ class ModelPlacement:
         self.location = location
         self.orientation = orientation
         self.reference = reference
+        self.active_face = None
+
+    def set_active_face(self,face_index):
+        self.active_face = face_index
+        print("set active face to %i" % face_index)
+
+    def hash_face(self,face_index):
+        #todo, some unique hash using face coords and normal
+        return hex(face_index)
 
 class Scene:
     """A collection of modelplacements"""
@@ -28,6 +41,13 @@ class Scene:
     def add_model(self,reference,model,location,orientation):
         placement = ModelPlacement(reference, model, location, orientation)
         self.model_placements[placement.reference] = placement
+
+    def get_model(self,reference):
+        placement = self.get_model_placement(reference)
+        return placement.model
+
+    def get_model_placement(self,reference):
+        return self.model_placements[reference]
 
 class SceneViewer():
     def __init__(self, scene, dimensions):
@@ -46,7 +66,7 @@ class SceneViewer():
 
     def init_pygame_canvas(self):
         screen = pygame.display.set_mode(self.dimensions)
-        screen.fill(pygame.Color(210,210,255))
+        screen.fill(DEFAULT_BACKGROUND_COLOR)
         pygame.display.init()
         pygame.display.update()
         return screen
@@ -77,17 +97,21 @@ class SceneViewer():
 
 
     def update(self):
-        self.screen.fill(pygame.Color(210,210,255))
+        self.screen.fill(DEFAULT_BACKGROUND_COLOR)
 
         if self.show_grid:
             self.draw_model_grid()
+
+        #make a list of active faces to render last
+        #so they appear above all other rendering
+        active_faces = []
 
         for reference,model_placement in self.scene.model_placements.items():
             print("model")
             model = model_placement.model
             #print(model)
 
-            for face in model.faces:
+            for index,face in enumerate(model.faces):
                 face_midpoint = face.get_midpoint()
                 normal_origin = self.viewport.project_point(face_midpoint)
                 normal_coords = (face.unit_normal*3) + np.array([face_midpoint.x,face_midpoint.y,face_midpoint.z])
@@ -101,6 +125,11 @@ class SceneViewer():
                         normal_coords,
                         1
                     )
+
+                edge_color = DEFAULT_EDGE_COLOR
+                if index == model_placement.active_face:
+                    edge_color = DEFAULT_ACTIVE_EDGE_COLOR
+                    active_faces.append(face)
 
                 for edge in face.edges:
                     #TODO, map coords to 2d canvas using environment (viewport object)
@@ -117,11 +146,31 @@ class SceneViewer():
                         2
                     )
                     pygame.draw.line(self.screen,
-                        (0,0,200),
+                        edge_color,
                         start_coords,
                         end_coords,
                         1
                     )
+        for face in active_faces:
+            face_points = []
+            for edge in face.edges:
+                face_points.append(self.viewport.project_point(edge.points[0]))
+                face_points.append(self.viewport.project_point(edge.points[1]))
+
+            #draw this face to a new surface to support alpha transparency
+            #TODO, make surface as small as possible for faster blitting
+            #or use this surface for the whole redraw. could be faster
+            #than drawing to the main buffer
+            #also consider dbl buffering
+            s = pygame.Surface(self.dimensions, pygame.SRCALPHA)  # the size of your rect
+            s.fill((255,255,255,50))           # this fills the entire surface
+
+            pygame.draw.polygon(
+                s, DEFAULT_ACTIVE_FACE_COLOR, face_points, 0
+            )
+
+            self.screen.blit(s, (0,0))
+
 
         pygame.display.update()
 
@@ -140,7 +189,7 @@ class SceneViewer():
                 2
             )
 
-            pygame.draw.line(self.screen,(200,0,0),
+            pygame.draw.line(self.screen,DEFAULT_GRID_COLOR,
                 self.viewport.project_point(Point(i*10,-5,1)),
                 self.viewport.project_point(Point(i*10,-5,2000)),
                 1

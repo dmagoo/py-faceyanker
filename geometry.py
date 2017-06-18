@@ -40,7 +40,8 @@ class Polygon2d:
     def get_points(self):
         """ chain edges together into a list of points, should
         be able to handle edges that are out of order """
-
+        #TODO, move the chaining mechanism into a general utility
+        #so 3d polys can use it too
         ret = []
         if len(self.edges) < 1:
             return ret
@@ -151,7 +152,6 @@ class Face:
         #    [-v[1],v[0],0]
         #]
         print(R)
-
 
         R = np.array(R)
 
