@@ -207,6 +207,11 @@ class FaceYankerApp:
 
         groups = []
 
+        last_x, last_y = (0,0)
+        margin = 2
+        #todo replace w/ width (of viewBox)
+        per_row = 5
+
         for reference,placement in self.scene.model_placements.items():
             for index,face in enumerate(placement.model.faces):
                 poly_2d = face.to2D()
@@ -216,9 +221,13 @@ class FaceYankerApp:
                 poly_points = [[float(coord) for coord in point] for point in poly_points[:-1]]
                 mid_x = sum([point[0] for point in poly_points])/len(poly_points)
                 mid_y = sum([point[1] for point in poly_points])/len(poly_points)
+                range_x = [min([point[0] for point in poly_points]),max([point[0] for point in poly_points])]
+                range_y = [min([point[1] for point in poly_points]),max([point[1] for point in poly_points])]
 
                 label = placement.reference + '-' + placement.hash_face(index)
-                group = svgwrite.container.Group(id=label)
+                group = svgwrite.container.Group(id=label,transform='translate(' + str(last_x + margin) + ',' + str(last_y + margin) + ')')
+
+                last_x = last_x + (range_x[1] - range_x[0])
 
                 group.add(dwg.polygon(poly_points,stroke="black",fill="none"))
 
@@ -228,8 +237,10 @@ class FaceYankerApp:
                         insert=(float(mid_x),float(mid_y))
                     )
                 )
+
                 groups.append(group)
         for group in groups:
+            #print(str(group.width) + "x" + str(group.width))
             dwg.add(group)
 
         dwg.save()
