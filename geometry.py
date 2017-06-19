@@ -6,18 +6,10 @@ def normalize_vector(v):
     return v/math.sqrt(sum([i*i for i in v]))
 
 def merge_faces(face_a, face_b):
-    print("merging faces")
     if not np.array_equal(face_a.get_unit_normal(), face_b.get_unit_normal()):
         raise Exception("cannot merge faces, not on same plane")
     if not face_a.adjacent_to(face_b):
         raise Exception("cannot merge faces, not touching")
-
-
-    #for edge in face_a.edges:
-        #if face_b.contains_edge(edge):
-        #    print("b contains %s" % edge)
-        #else:
-    #    print("b does not contain %s" % edge)
 
     new_edges = [
         edge for edge in face_a.edges if not face_b.contains_edge(edge)
@@ -125,56 +117,6 @@ class Face:
             self.normal = self.get_normal()
 
         self.unit_normal = self.get_unit_normal()
-
-    def to2DOld(self):
-
-        #print("face to 2d")
-        target_normal = np.array([0,0,-1])
-        angle_between = np.arccos(np.clip(np.dot(self.unit_normal, target_normal), -1.0, 1.0))
-        #print("angle between %s and %s %s" % (self.unit_normal, target_normal,angle_between))
-
-        delta_cos,delta_sin = np.cos(angle_between), np.sin(angle_between)
-
-        v = np.cross(self.unit_normal,target_normal)
-        print(v)
-        print("cross product of the two %s" % v)
-        ux,uy,uz = target_normal
-        inv_cos = (1 - delta_cos)
-        R = [
-            [delta_cos + ux*ux*inv_cos    , ux*uy*inv_cos-uz*delta_sin , ux*uz*inv_cos+uy*delta_sin ],
-            [uy*ux*inv_cos + uz*delta_sin , delta_cos+uy*uy*inv_cos    , uy*uz*inv_cos-ux*delta_sin ],
-            [uz*ux*inv_cos - uy*delta_sin , uz*uy*inv_cos+ux*delta_sin , delta_cos*uz*uz*inv_cos    ]
-        ]
-
-        #R = [
-        #    [0,-v[2],v[1]],
-        #    [v[2],0,-v[0]],
-        #    [-v[1],v[0],0]
-        #]
-        print(R)
-
-        R = np.array(R)
-
-        poly = Polygon2d()
-
-        new_edges = []
-        for edge in self.edges:
-            new_edge = []
-            for point in edge.points:
-                #point_transformed = point.to_vector()*R
-                point_transformed = [int(coord) for coord in R.dot(point.to_vector())]
-                print("convert point")
-                print(point)
-                print("to 2d")
-                print(point_transformed)
-                new_edge.append([point_transformed[0],point_transformed[1]])
-            poly.add_edge(new_edge)
-            new_edges.append(new_edge)
-        new_edges = np.array(new_edges)
-        #print("i transformed a thing!")
-        #print(new_edges)
-        return poly
-
 
     def to2D(self):
         local_origin = (self.edges[0].points[0]).to_vector()

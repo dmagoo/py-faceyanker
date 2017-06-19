@@ -207,13 +207,16 @@ class FaceYankerApp:
 
         groups = []
 
-        last_x, last_y = (0,0)
+        last_x, last_y = (0.0,0.0)
         margin = 2
         #todo replace w/ width (of viewBox)
         per_row = 5
+        items_in_row = 0
+        max_y_in_row = 0.0
 
         for reference,placement in self.scene.model_placements.items():
             for index,face in enumerate(placement.model.faces):
+                items_in_row = items_in_row + 1
                 poly_2d = face.to2D()
                 poly_points = poly_2d.get_points()
 
@@ -223,25 +226,32 @@ class FaceYankerApp:
                 mid_y = sum([point[1] for point in poly_points])/len(poly_points)
                 range_x = [min([point[0] for point in poly_points]),max([point[0] for point in poly_points])]
                 range_y = [min([point[1] for point in poly_points]),max([point[1] for point in poly_points])]
-
                 label = placement.reference + '-' + placement.hash_face(index)
                 group = svgwrite.container.Group(id=label,transform='translate(' + str(last_x + margin) + ',' + str(last_y + margin) + ')')
-
-                last_x = last_x + (range_x[1] - range_x[0])
-
-                group.add(dwg.polygon(poly_points,stroke="black",fill="none"))
+                group.add(dwg.polygon(poly_points,stroke="rgb(0,0,200)",fill="none", stroke_width=".5pt"))
 
                 group.add(
                     dwg.text(
                         label,
                         insert=(float(mid_x),float(mid_y)),
-                        font_size="6px"
+                        font_size="6px",
+                        fill="rgb(200,0,0)"
                     )
                 )
 
                 groups.append(group)
+
+                if per_row <= items_in_row:
+                    last_x = 0.0
+                    items_in_row = 0
+                    last_y = last_y + max_y_in_row
+                    max_y_in_row = 0.0
+
+                else:
+                    last_x = last_x + (range_x[1] - range_x[0])
+                    max_y_in_row = max(max_y_in_row,range_y[1] - range_y[0])
+
         for group in groups:
-            #print(str(group.width) + "x" + str(group.width))
             dwg.add(group)
 
         dwg.save()
