@@ -234,7 +234,8 @@ class FaceYankerApp:
                 group.add(
                     dwg.text(
                         label,
-                        insert=(float(mid_x),float(mid_y))
+                        insert=(float(mid_x),float(mid_y)),
+                        font_size="6px"
                     )
                 )
 
@@ -247,12 +248,6 @@ class FaceYankerApp:
 
     def on_face_select(self, e):
         item = self.model_explorer.focus()
-        #print("you clicked on", self.model_explorer.item(item,"text"))
-        #print(item)
-
-        #print(item.parent())
-        #print(self.model_explorer.parent(item))
-
         model_placement = self.scene.get_model_placement(self.model_explorer.parent(item))
         model_placement.set_active_face(int(self.model_explorer.item(item,"text"),0))
         self.scene_viewer.update()
