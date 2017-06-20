@@ -14,8 +14,9 @@ SCENE_PERSPECTIVE_BACK = 5
 
 DEFAULT_PERSPECTIVE = SCENE_PERSPECTIVE_FRONT
 
-MAX_ZOOM_LEVEL = 300
-MIN_ZOOM_LEVEL = -300
+MAX_ZOOM_LEVEL = -10
+MIN_ZOOM_LEVEL = -400
+DEFAULT_ZOOM_LEVEL = -30
 
 MAX_OFFSET = 500
 MIN_OFFSET = -500
@@ -89,6 +90,7 @@ class SceneViewer():
     def zoom_in(self,amt):
         #self.zoom_level = min(self.zoom_level + amt, MAX_ZOOM_LEVEL)
         self.viewport.zoom_level = np.clip(self.viewport.zoom_level + amt, MIN_ZOOM_LEVEL, MAX_ZOOM_LEVEL)
+
     def zoom_out(self,amt):
         self.viewport.zoom_level = max(self.viewport.zoom_level - amt, MIN_ZOOM_LEVEL)
 
@@ -109,7 +111,6 @@ class SceneViewer():
             val = not self.show_grid
 
         self.show_grid = val
-
 
     def update(self):
         self.screen.fill(DEFAULT_BACKGROUND_COLOR)
@@ -184,12 +185,7 @@ class SceneViewer():
         pygame.display.update()
 
     def draw_model_grid(self):
-        pygame.draw.line(self.screen,DEFAULT_GRID_COLOR,(0,0),(self.dimensions[0]-1,0),1)
-        pygame.draw.line(self.screen,DEFAULT_GRID_COLOR,(self.dimensions[0]-1,0),(self.dimensions[0]-1,self.dimensions[1]-1),1)
-        pygame.draw.line(self.screen,DEFAULT_GRID_COLOR,(self.dimensions[0]-1,self.dimensions[1]-1),(0,self.dimensions[1]-1),1)
-        pygame.draw.line(self.screen,DEFAULT_GRID_COLOR,(0,self.dimensions[1]-1),(0,0),1)
-
-        for i in range(-5,5):
+        for i in range(-10,10):
             pygame.draw.circle(
                 self.screen,
                 (1,1,1),
@@ -199,10 +195,11 @@ class SceneViewer():
             )
 
             pygame.draw.line(self.screen,DEFAULT_GRID_COLOR,
-                self.viewport.project_point(Point(i*10,-5,1)),
+                self.viewport.project_point(Point(i*10,-5,-10)),
                 self.viewport.project_point(Point(i*10,-5,2000)),
                 1
             )
+
         return
 
 class Viewport:
@@ -212,7 +209,7 @@ class Viewport:
     def __init__(self, dimensions):
         self.dimensions=dimensions
         self.midpoint = dimensions[0]/2, dimensions[1]/2
-        self.zoom_level = -10
+        self.zoom_level = DEFAULT_ZOOM_LEVEL
         self.offset = [0,0] #viewport offset x,y
         self.h_fov = 1.042 # 60deg in radians
         self.perspective = DEFAULT_PERSPECTIVE
@@ -222,20 +219,21 @@ class Viewport:
 
         #dirty trick to cast a 3d vector into a Point object
         #if it is already a Point object, a redundant point is returned
-        point = Point(point[0],point[1],point[2])
 
-        point = {
-            SCENE_PERSPECTIVE_FRONT: point,
-            SCENE_PERSPECTIVE_TOP: Point(point.x,point.z,point.y),
-            SCENE_PERSPECTIVE_LEFT: Point(-point.z,point.y,point.x),
-            SCENE_PERSPECTIVE_RIGHT: Point(point.z,point.y,-point.x),
-            SCENE_PERSPECTIVE_BOTTOM: Point(point.x,-point.z,point.y),
-            SCENE_PERSPECTIVE_BACK:  Point(-point.x,point.y,-point.z)
+        if self.perspective == SCENE_PERSPECTIVE_FRONT:
+            point = Point(point[0],point[1],point[2])
+        elif self.perspective == SCENE_PERSPECTIVE_TOP:
+            point = Point(point[0],point[2],point[1])
+        elif self.perspective == SCENE_PERSPECTIVE_LEFT:
+            point = Point(-point[2],point[1],point[0])
+        elif self.perspective == SCENE_PERSPECTIVE_RIGHT:
+            point = Point(point[2],point[1],-point[0])
+        elif self.perspective == SCENE_PERSPECTIVE_BOTTOM:
+            point = Point(point[0],-point[2],point[1])
+        elif self.perspective == SCENE_PERSPECTIVE_BACK:
+            point = Point(-point[0],point[1],-point[2])
 
-        }[self.perspective]
-
-        #to do a cheap left-view
-        #point =
+        #cheap way to avoid div/zero, I guess
         if point.z == 0:
             z_actual = -.001
         else:
@@ -245,7 +243,14 @@ class Viewport:
         x_actual = point.x + self.offset[0]
         y_actual = point.y + self.offset[1]
 
-        x = self.dimensions[0]/2 + x_actual / z_actual / tan(self.h_fov/2) * self.dimensions[0]/2;
-        y = self.dimensions[1]/2 - y_actual / z_actual / tan(self.h_fov/2) * self.dimensions[0]/2;
-        #print((x,y))
+        mid_x = self.dimensions[0]/2
+        mid_y = self.dimensions[1]/2
+        fov_tan = tan(self.h_fov/2)
+
+        x = mid_x + x_actual / z_actual / fov_tan * mid_x
+        y = mid_y - y_actual / z_actual / fov_tan * mid_x
+
+        #x = np.clip(x,self.dimensions[0]-1,self.dimensions[0]+1)
+        #y = np.clip(y,self.dimensions[1]-1,self.dimensions[1]+1)
+        #todo deal w infinity x or y
         return (int(x),int(y))

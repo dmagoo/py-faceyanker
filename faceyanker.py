@@ -137,19 +137,18 @@ class FaceYankerApp:
 
         if event.char == '-':
             self.scene_viewer.zoom_in(1)
-        if event.char == '+':
+        elif event.char == '+':
             self.scene_viewer.zoom_out(1)
-        if event.char == 'w':
+        elif event.char == 'w':
             self.scene_viewer.move(0,-1)
-        if event.char == 'd':
+        elif event.char == 'd':
             self.scene_viewer.move(-1,0)
-        if event.char == 's':
+        elif event.char == 's':
             self.scene_viewer.move(0,1)
-        if event.char == 'a':
+        elif event.char == 'a':
             self.scene_viewer.move(1,0)
-        if event.char == '\r':
+        elif event.char == '\r':
             self.flatten_model()
-
         self.scene_viewer.update()
 
     def on_toggle_grid(self):
@@ -228,7 +227,7 @@ class FaceYankerApp:
                 range_y = [min([point[1] for point in poly_points]),max([point[1] for point in poly_points])]
                 label = placement.reference + '-' + placement.hash_face(index)
                 group = svgwrite.container.Group(id=label,transform='translate(' + str(last_x + margin) + ',' + str(last_y + margin) + ')')
-                group.add(dwg.polygon(poly_points,stroke="rgb(0,0,200)",fill="none", stroke_width=".5pt"))
+                group.add(dwg.polygon(poly_points,stroke="rgb(0,0,255)",fill="none", stroke_width=".5pt"))
 
                 group.add(
                     dwg.text(
