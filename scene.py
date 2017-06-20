@@ -2,6 +2,9 @@ from math import tan
 import numpy as np
 import pygame
 
+from geometry import get_ordered_points_from_edges
+
+#constants to describe different screen perspectives
 SCENE_PERSPECTIVE_FRONT = 0
 SCENE_PERSPECTIVE_TOP = 1
 SCENE_PERSPECTIVE_LEFT = 2
@@ -37,7 +40,6 @@ class ModelPlacement:
 
     def set_active_face(self,face_index):
         self.active_face = face_index
-        print("set active face to %i" % face_index)
 
     def hash_face(self,face_index):
         #todo, some unique hash using face coords and normal
@@ -143,8 +145,6 @@ class SceneViewer():
                     active_faces.append(face)
 
                 for edge in face.edges:
-                    #TODO, map coords to 2d canvas using environment (viewport object)
-                    #coords = 5*int(30+point.x),5*int(30+point.y)
                     start_coords = self.viewport.project_point(edge.points[0])
                     end_coords = self.viewport.project_point(edge.points[1])
                     #print(coords)
@@ -163,14 +163,10 @@ class SceneViewer():
                         1
                     )
         for face in active_faces:
-            face_points = []
-            debug_edges = []
-            #these edges are out of order and will cause messed up polygons
-            #todo: generalize code from polygon2d.get_points and reuse here
-            for edge in face.edges:
-                debug_edges.append((self.viewport.project_point(edge.points[0]),self.viewport.project_point(edge.points[1])))
-                face_points.append(self.viewport.project_point(edge.points[0]))
-                face_points.append(self.viewport.project_point(edge.points[1]))
+            face_points = [
+                self.viewport.project_point(point)
+                for point in get_ordered_points_from_edges(face.edges)
+            ]
 
             #draw this face to a new surface to support alpha transparency
             #TODO, make surface as small as possible for faster blitting
@@ -179,14 +175,11 @@ class SceneViewer():
             #also consider dbl buffering
             s = pygame.Surface(self.dimensions, pygame.SRCALPHA)  # the size of your rect
             s.fill((255,255,255,50))           # this fills the entire surface
-            print(debug_edges)
-            print(face_points)
             pygame.draw.polygon(
                 s, DEFAULT_ACTIVE_FACE_COLOR, face_points[:-1], 0
             )
 
             self.screen.blit(s, (0,0))
-
 
         pygame.display.update()
 
@@ -226,6 +219,10 @@ class Viewport:
 
     def project_point(self,point):
         """ Given a point, return the coordinates within this viewport """
+
+        #dirty trick to cast a 3d vector into a Point object
+        #if it is already a Point object, a redundant point is returned
+        point = Point(point[0],point[1],point[2])
 
         point = {
             SCENE_PERSPECTIVE_FRONT: point,

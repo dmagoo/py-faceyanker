@@ -21,6 +21,36 @@ def merge_faces(face_a, face_b):
 
     return new_face
 
+def get_ordered_points_from_edges(edges):
+    """ chain edges together into a list of points, should
+    be able to handle edges that are out of order """
+    ret = []
+    if len(edges) < 1:
+        return ret
+
+    #track list of edge indexes we processed
+    done = []
+    last_point = None
+    while len(done) < len(edges):
+        old_len = len(done)
+        for i in range(len(edges)):
+            if last_point is None:
+                ret.append(edges[i][0])
+                ret.append(edges[i][1])
+                done.append(i)
+            else:
+                #if edges[i][0] == last_point:
+                #(a, b, rtol=1e-05, atol=1e-08, equal_nan=False)[source]¶
+                if np.allclose(edges[i][0], last_point, rtol=1e-9, atol=0.0):
+                    ret.append(edges[i][1])
+                    done.append(i)
+            if len(done):
+                last_point = edges[done[-1]][1]
+        #if there are edges left, but we found nothing new
+        if len(done) != len(edges) and len(done) == old_len:
+            raise Exception("could not chain all edges")
+    return ret
+
 class Polygon2d:
     def __init__(self):
         self.edges = []
@@ -30,37 +60,7 @@ class Polygon2d:
         self.edges.append(edge)
 
     def get_points(self):
-        """ chain edges together into a list of points, should
-        be able to handle edges that are out of order """
-        #TODO, move the chaining mechanism into a general utility
-        #so 3d polys can use it too
-        ret = []
-        if len(self.edges) < 1:
-            return ret
-
-        #track list of edge indexes we processed
-        done = []
-        last_point = None
-        while len(done) < len(self.edges):
-            old_len = len(done)
-            for i in range(len(self.edges)):
-                if last_point is None:
-                    ret.append(self.edges[i][0])
-                    ret.append(self.edges[i][1])
-                    done.append(i)
-                else:
-                    #if self.edges[i][0] == last_point:
-                    #(a, b, rtol=1e-05, atol=1e-08, equal_nan=False)[source]¶
-                    if np.allclose(self.edges[i][0], last_point, rtol=1e-9, atol=0.0):
-                        ret.append(self.edges[i][1])
-                        done.append(i)
-                if len(done):
-                    last_point = self.edges[done[-1]][1]
-            #if there are edges left, but we found nothing new
-            if len(done) != len(self.edges) and len(done) == old_len:
-                raise Exception("could not chain all edges")
-        return ret
-
+        return get_ordered_points_from_edges(self.edges)
 
 class Point:
     def __init__(self,x=0,y=0,z=0):
@@ -81,6 +81,13 @@ class Point:
     def __sub__(self,other):
         new_point = self.to_vector() - other.to_vector()
         return Point(new_point[0],new_point[1],new_point[2])
+
+    def __getitem__(self, i):
+        return self.to_vector()[i]
+
+    def __iter__(self):
+        for i in self.to_vector():
+            yield i
 
 class Edge:
     def __init__(self, points):
@@ -106,6 +113,13 @@ class Edge:
 
     def __repr__(self):
         return self.__str__()
+
+    def __getitem__(self, i):
+        return self.to_vector()[i]
+
+    def __iter__(self):
+        for i in self.to_vector():
+            yield i
 
 class Face:
     def __init__(self, edges = [], normal = None):
