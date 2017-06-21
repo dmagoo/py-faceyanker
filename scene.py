@@ -39,10 +39,16 @@ class ModelPlacement:
         self.reference = reference
         self.active_face = None
 
-    def set_active_face(self,face_index):
+    def set_active_face_index(self,face_index):
         self.active_face = face_index
 
-    def hash_face(self,face_index):
+    def get_active_face(self):
+        if None is not self.active_face:
+            return self.model.faces[self.active_face]
+
+        return None
+
+    def hash_face_by_index(self,face_index):
         #todo, some unique hash using face coords and normal
         return hex(face_index)
 

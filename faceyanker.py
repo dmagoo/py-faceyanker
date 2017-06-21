@@ -18,6 +18,8 @@ from scene import Scene, SceneViewer, \
     SCENE_PERSPECTIVE_BACK
 
 DEFAULT_MODEL_CANVAS_DIMENSIONS = (600,600)
+DEFAULT_POLYGON_CANVAS_DIMENSIONS = (300,300)
+
 DEBUG = False
 
 class FaceYankerApp:
@@ -45,7 +47,8 @@ class FaceYankerApp:
         frame.focus_set()
 
         self.init_menu(frame)
-        self.init_canvas()
+        self.polygon_view = self.init_polygon_view()
+        self.clear_polygon_view()
         self.model_explorer = self.init_model_explorer()
 
     def init_menu(self,frame):
@@ -76,10 +79,36 @@ class FaceYankerApp:
 
         menubar.add_cascade(label="View", menu=viewMenu, underline=0)
 
-    def init_canvas(self):
+    def init_polygon_view(self):
         """ reserved for non pygame canvas stuff (placeholder) """
-        w = Canvas(self.root, width=300, height=450)
-        w.pack(side="right",fill="both")
+        w = Canvas(self.root, width=DEFAULT_POLYGON_CANVAS_DIMENSIONS[0], height=DEFAULT_POLYGON_CANVAS_DIMENSIONS[1],background="#ffffff")
+        w.pack(side="right",fill="both",expand=True)
+        return w
+
+    def clear_polygon_view(self):
+        self.polygon_view.delete("all")
+        self.polygon_view.create_rectangle(0,0,DEFAULT_POLYGON_CANVAS_DIMENSIONS[0]-1,DEFAULT_POLYGON_CANVAS_DIMENSIONS[1]-1, outline="#000000")
+
+    def update_polygon_view(self, polygon2d):
+        self.clear_polygon_view()
+        margin = 10
+        poly_dims = polygon2d.get_dimensions()
+        ratios = np.divide(np.array(DEFAULT_POLYGON_CANVAS_DIMENSIONS)-(margin*2),poly_dims)
+        min_ratio = min(ratios)
+        ratios = np.array([min_ratio,min_ratio])
+        #scale coordinates to fit the screen, use the smaller of the x,y ratios
+        #translate by margin while we're at it
+        #note create_polygon does not play nice w/ numpy arrays
+        points = (np.array(margin+margin) + polygon2d.get_points_scaled(ratios)[:-1].astype(int)).tolist()
+        self.polygon_view.create_polygon(points, outline="#66ccff", fill="#66ccff")
+        self.polygon_view.create_text(
+            DEFAULT_POLYGON_CANVAS_DIMENSIONS[0]/2,
+            DEFAULT_POLYGON_CANVAS_DIMENSIONS[1]-margin,
+            anchor="center",
+            text=("w=%imm h=%imm" % poly_dims)
+        )
+
+
 
     def embed_sdl(self):
         embed = Frame(self.root, width = DEFAULT_MODEL_CANVAS_DIMENSIONS[0], height = DEFAULT_MODEL_CANVAS_DIMENSIONS[1]) #creates embed frame for pygame window
@@ -121,7 +150,7 @@ class FaceYankerApp:
                     model_root,
                     "end",
                     model_placement.reference + "-" + str(i),
-                    text=model_placement.hash_face(i),
+                    text=model_placement.hash_face_by_index(i),
                     values=(face.get_unit_normal(),),
                     tags=("face",)
                 )
@@ -225,7 +254,7 @@ class FaceYankerApp:
                 mid_y = sum([point[1] for point in poly_points])/len(poly_points)
                 range_x = [min([point[0] for point in poly_points]),max([point[0] for point in poly_points])]
                 range_y = [min([point[1] for point in poly_points]),max([point[1] for point in poly_points])]
-                label = placement.reference + '-' + placement.hash_face(index)
+                label = placement.reference + '-' + placement.hash_face_by_index(index)
                 group = svgwrite.container.Group(id=label,transform='translate(' + str(last_x + margin) + ',' + str(last_y + margin) + ')')
                 group.add(dwg.polygon(poly_points,stroke="rgb(0,0,255)",fill="none", stroke_width=".5pt"))
 
@@ -258,7 +287,8 @@ class FaceYankerApp:
     def on_face_select(self, e):
         item = self.model_explorer.focus()
         model_placement = self.scene.get_model_placement(self.model_explorer.parent(item))
-        model_placement.set_active_face(int(self.model_explorer.item(item,"text"),0))
+        model_placement.set_active_face_index(int(self.model_explorer.item(item,"text"),0))
+        self.update_polygon_view(model_placement.get_active_face().to2D())
         self.scene_viewer.update()
 
     def on_open(self):

@@ -62,6 +62,29 @@ class Polygon2d:
     def get_points(self):
         return get_ordered_points_from_edges(self.edges)
 
+    def get_points_scaled(self,scale_factors):
+        return self.get_points()*scale_factors
+
+
+    def get_extents(self):
+        coords = self.get_points()
+        extents = [np.amin(coords, axis=0),np.amax(coords, axis=0)]
+        return extents
+
+    def get_dimensions(self):
+        vals = self.get_extents()
+        return (
+                (vals[1][0] - vals[0][0]),
+                (vals[1][1] - vals[0][1])
+                )
+
+    def get_width(self):
+        return self.get_dimensions()[0]
+
+    def get_height(self):
+        return self.get_dimensions()[1]
+
+
 class Point:
     def __init__(self,x=0,y=0,z=0):
         self.x,self.y,self.z = x,y,z
