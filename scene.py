@@ -1,3 +1,4 @@
+import time
 from math import tan
 import numpy as np
 import pygame
@@ -24,7 +25,6 @@ MIN_OFFSET = -500
 DEFAULT_NORMAL_COLOR = (0,200,0)
 DEFAULT_GRID_COLOR = (200,200,200)
 DEFAULT_EDGE_COLOR = (0,0,200)
-DEFAULT_ACTIVE_EDGE_COLOR = (200,0,0)
 DEFAULT_BACKGROUND_COLOR = (255,255,255)
 DEFAULT_ACTIVE_FACE_COLOR = (30,30,200,100)
 
@@ -132,12 +132,12 @@ class SceneViewer():
             model = model_placement.model
 
             for index,face in enumerate(model.faces):
-                face_midpoint = face.get_midpoint()
-                normal_origin = self.viewport.project_point(face_midpoint)
-                normal_coords = (face.unit_normal*3) + np.array([face_midpoint.x,face_midpoint.y,face_midpoint.z])
-                normal_coords = self.viewport.project_point(Point(normal_coords[0],normal_coords[1],normal_coords[2]))
-
                 if self.show_normals:
+                    face_midpoint = face.get_midpoint()
+                    normal_origin = self.viewport.project_point(face_midpoint)
+                    normal_coords = (face.unit_normal*3) + np.array([face_midpoint.x,face_midpoint.y,face_midpoint.z])
+                    normal_coords = self.viewport.project_point(Point(normal_coords[0],normal_coords[1],normal_coords[2]))
+
                     pygame.draw.line(
                         self.screen,
                         self.normal_color,
@@ -146,16 +146,12 @@ class SceneViewer():
                         1
                     )
 
-                edge_color = DEFAULT_EDGE_COLOR
                 if index == model_placement.active_face:
-                    edge_color = DEFAULT_ACTIVE_EDGE_COLOR
                     active_faces.append(face)
 
                 for edge in face.edges:
-                    start_coords = self.viewport.project_point(edge.points[0])
-                    end_coords = self.viewport.project_point(edge.points[1])
-                    #print(coords)
-                    #print("------------")
+                    start_coords,end_coords = self.viewport.project_point_list(edge.to_vector())
+
                     pygame.draw.circle(
                         self.screen,
                         (1,1,1),
@@ -164,16 +160,14 @@ class SceneViewer():
                         2
                     )
                     pygame.draw.line(self.screen,
-                        edge_color,
+                        DEFAULT_EDGE_COLOR,
                         start_coords,
                         end_coords,
                         1
                     )
+
         for face in active_faces:
-            face_points = [
-                self.viewport.project_point(point)
-                for point in get_ordered_points_from_edges(face.edges)
-            ]
+            face_points = self.viewport.project_point_list(face.to_vector())
 
             #draw this face to a new surface to support alpha transparency
             #TODO, make surface as small as possible for faster blitting
@@ -183,7 +177,7 @@ class SceneViewer():
             s = pygame.Surface(self.dimensions, pygame.SRCALPHA)  # the size of your rect
             s.fill((255,255,255,50))           # this fills the entire surface
             pygame.draw.polygon(
-                s, DEFAULT_ACTIVE_FACE_COLOR, face_points[:-1], 0
+                s, DEFAULT_ACTIVE_FACE_COLOR, face_points, 0
             )
 
             self.screen.blit(s, (0,0))
@@ -221,42 +215,49 @@ class Viewport:
         self.perspective = DEFAULT_PERSPECTIVE
 
     def project_point(self,point):
-        """ Given a point, return the coordinates within this viewport """
+        return self.project_point_list([point])[0]
 
-        #dirty trick to cast a 3d vector into a Point object
-        #if it is already a Point object, a redundant point is returned
 
-        if self.perspective == SCENE_PERSPECTIVE_FRONT:
-            point = Point(point[0],point[1],point[2])
-        elif self.perspective == SCENE_PERSPECTIVE_TOP:
-            point = Point(point[0],point[2],point[1])
-        elif self.perspective == SCENE_PERSPECTIVE_LEFT:
-            point = Point(-point[2],point[1],point[0])
-        elif self.perspective == SCENE_PERSPECTIVE_RIGHT:
-            point = Point(point[2],point[1],-point[0])
-        elif self.perspective == SCENE_PERSPECTIVE_BOTTOM:
-            point = Point(point[0],-point[2],point[1])
-        elif self.perspective == SCENE_PERSPECTIVE_BACK:
-            point = Point(-point[0],point[1],-point[2])
-
-        #cheap way to avoid div/zero, I guess
-        if point.z == 0:
-            z_actual = -.001
-        else:
-            z_actual = point.z
-
-        z_actual = z_actual - self.zoom_level
-        x_actual = point.x + self.offset[0]
-        y_actual = point.y + self.offset[1]
-
+    def project_point_list(self,point_list):
+        """ Given a list of points, return the coordinates within this viewport """
         mid_x = self.dimensions[0]/2
         mid_y = self.dimensions[1]/2
         fov_tan = tan(self.h_fov/2)
 
-        x = mid_x + x_actual / z_actual / fov_tan * mid_x
-        y = mid_y - y_actual / z_actual / fov_tan * mid_x
+        coordinate_list = []
 
-        #x = np.clip(x,self.dimensions[0]-1,self.dimensions[0]+1)
-        #y = np.clip(y,self.dimensions[1]-1,self.dimensions[1]+1)
-        #todo deal w infinity x or y
-        return (int(x),int(y))
+        #dirty trick to cast a 3d vector into a Point object
+        #if it is already a Point object, a redundant point is returned
+        for point in point_list:
+            if self.perspective == SCENE_PERSPECTIVE_FRONT:
+                point = Point(point[0],point[1],point[2])
+            elif self.perspective == SCENE_PERSPECTIVE_TOP:
+                point = Point(point[0],point[2],point[1])
+            elif self.perspective == SCENE_PERSPECTIVE_LEFT:
+                point = Point(-point[2],point[1],point[0])
+            elif self.perspective == SCENE_PERSPECTIVE_RIGHT:
+                point = Point(point[2],point[1],-point[0])
+            elif self.perspective == SCENE_PERSPECTIVE_BOTTOM:
+                point = Point(point[0],-point[2],point[1])
+            elif self.perspective == SCENE_PERSPECTIVE_BACK:
+                point = Point(-point[0],point[1],-point[2])
+
+            #cheap way to avoid div/zero, I guess
+            if point.z == 0:
+                z_actual = -.001
+            else:
+                z_actual = point.z
+
+            z_actual = z_actual - self.zoom_level
+            x_actual = point.x + self.offset[0]
+            y_actual = point.y + self.offset[1]
+
+            x = mid_x + x_actual / z_actual / fov_tan * mid_x
+            y = mid_y - y_actual / z_actual / fov_tan * mid_x
+
+            #x = np.clip(x,self.dimensions[0]-1,self.dimensions[0]+1)
+            #y = np.clip(y,self.dimensions[1]-1,self.dimensions[1]+1)
+            #todo deal w infinity x or y
+            coordinate_list.append((int(x),int(y)))
+
+        return coordinate_list

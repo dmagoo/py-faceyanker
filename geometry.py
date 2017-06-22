@@ -208,6 +208,9 @@ class Face:
         """ return true if any edge matches """
         return any([other.contains_edge(edge) for edge in self.edges])
 
+    def to_vector(self):
+        return np.array([point for point in get_ordered_points_from_edges(self.edges)][:-1])
+
     def __str__(self):
         return str([edge.to_vector() for edge in self.edges]) + ":" + str(self.unit_normal)
 
@@ -251,6 +254,9 @@ class Model:
     def __init__(self):
         self.faces = []
         origin = Point(0,0,0)
+
+    def to_vector(self):
+        return np.array([face.to_vector() for face in self.faces])
 
     def add_face(self, face):
         self.faces.append(face)

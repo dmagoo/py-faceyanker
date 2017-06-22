@@ -302,8 +302,9 @@ class FaceYankerApp:
 
     def test(self):
         print("testing")
-        my_mesh = mesh.Mesh.from_file("//ORCHID/home/development/faceyanker/source-files/testcube_35mm.stl")
+        my_mesh = mesh.Mesh.from_file("//ORCHID/home/development/faceyanker/py-faceyanker/source-files/testcube_35mm.stl")
         model = model_from_mesh(my_mesh)
+        print(model.to_vector().tolist())
         self.scene.add_model("my_model",model,(0,0,0),None)
         self.scene_viewer.update()
         self.flatten_model()
